@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PathMiner</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000000;
+      --surface: #0b0b0b;
+      --text: #f5f5f5;
+      --muted: #93a0ad;
+      --border: #1f1f1f;
+      --accent: #9ad7ff;
+      --accent-2: #ffd480;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 14px;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      text-align: left;
+      min-width: 360px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 650;
+      letter-spacing: 0.2px;
+    }
+    .app {
+      display: grid;
+      gap: 12px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    .card.compact {
+      gap: 8px;
+    }
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .sub {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .select {
+      width: 100%;
+      padding: 7px 8px;
+      background: #0f0f0f;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      outline: none;
+    }
+    .toggle {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .primary,
+    .secondary {
+      appearance: none;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: #0f0f0f;
+      color: var(--text);
+    }
+    .primary {
+      background: linear-gradient(180deg, #111111, #0b0b0b);
+    }
+    .secondary {
+      background: #0a0a0a;
+      color: var(--muted);
+    }
+    .status {
+      min-height: 14px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .entries {
+      display: grid;
+      gap: 10px;
+      max-height: 320px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .entry {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      display: grid;
+      gap: 6px;
+    }
+    .entry:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .entry-main {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .entry-url {
+      flex: 1;
+      min-width: 140px;
+      word-break: break-all;
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .entry-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0f0f0f;
+      color: var(--muted);
+    }
+    .badge.method {
+      color: var(--accent);
+      border-color: #1c2a35;
+    }
+    .badge.status-2xx { color: #9ce3b4; border-color: #173526; }
+    .badge.status-3xx { color: #9ad7ff; border-color: #1d2e3b; }
+    .badge.status-4xx { color: #ffd480; border-color: #3b2d1d; }
+    .badge.status-5xx { color: #ff9a9a; border-color: #3b1d1d; }
+    .pill {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #0f0f0f;
+      color: var(--muted);
+    }
+    .pill.score {
+      color: var(--accent-2);
+      border-color: #3b2d1d;
+    }
+    .hidden {
+      display: none;
+    }
+    details.graphql {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      background: var(--surface);
+    }
+    summary.graphql-summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 12px;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    summary.graphql-summary::-webkit-details-marker {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="card">
+      <div class="header-row">
+        <h1>PathMiner</h1>
+      </div>
+      <p class="sub">Scan, capture, and explore endpoints.</p>
+    </header>
+
+    <section class="card compact">
+      <button id="runCode" class="primary" type="button">Run scan</button>
+    </section>
+
+    <details id="graphqlTools" class="graphql">
+      <summary class="graphql-summary">GraphQL tools</summary>
+      <div class="row" style="margin-top:8px;">
+        <select id="graphqlTarget" class="select"></select>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button id="graphqlGuess" class="secondary" type="button">Generate endpoints</button>
+        <button id="graphqlIntrospect" class="primary" type="button">Try introspection</button>
+      </div>
+      <label class="toggle" style="margin-top:8px;">
+        <input type="checkbox" id="graphqlAllowToggle" />
+        Allow introspection
+      </label>
+      <div id="graphqlStatus" class="status"></div>
+    </details>
+
+    <section id="entriesSection" class="card hidden">
+      <div id="entries" class="entries"></div>
+      <button id="loadMore" class="secondary hidden" type="button">Load more</button>
+    </section>
+
+    <div id="status" class="status">Ready.</div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
