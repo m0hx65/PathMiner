@@ -9,187 +9,124 @@
       color-scheme: dark;
       --bg: #000000;
       --surface: #0b0b0b;
+      --surface-2: #0f0f0f;
       --text: #f5f5f5;
       --muted: #93a0ad;
       --border: #1f1f1f;
+      --border-2: #2d2d2d;
       --accent: #9ad7ff;
       --accent-2: #ffd480;
+      --danger: #ff9a9a;
+      --good: #9ce3b4;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      padding: 14px;
+      padding: 12px;
       font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
       text-align: left;
-      min-width: 360px;
+      width: 420px;
     }
-    h1 {
-      margin: 0;
-      font-size: 17px;
-      font-weight: 650;
-      letter-spacing: 0.2px;
-    }
-    .app {
-      display: grid;
-      gap: 12px;
-    }
+    h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: 0.2px; }
+    .app { display: grid; gap: 10px; }
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 12px;
+      padding: 10px 12px;
       display: grid;
-      gap: 10px;
-    }
-    .card.compact {
       gap: 8px;
     }
-    .header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
+    .header-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .host {
+      font-size: 11px; color: var(--accent); font-weight: 600;
+      max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .row.between { justify-content: space-between; }
+    .grow { flex: 1; }
+    .sub { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+    .stats { display: flex; gap: 6px; }
+    .stat {
+      flex: 1; text-align: center; background: var(--surface-2);
+      border: 1px solid var(--border); border-radius: 10px; padding: 6px 4px;
     }
-    .sub {
-      margin: 0;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.4;
+    .stat b { display: block; font-size: 16px; line-height: 1.1; }
+    .stat span { font-size: 10px; color: var(--muted); }
+    .stat.high b { color: var(--accent-2); }
+
+    button {
+      appearance: none; border-radius: 9px; padding: 7px 11px;
+      font-size: 12px; cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface-2); color: var(--text);
     }
-    .select {
-      width: 100%;
-      padding: 7px 8px;
-      background: #0f0f0f;
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 12px;
-      outline: none;
+    button:hover:not(:disabled) { border-color: var(--border-2); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.primary { background: linear-gradient(180deg, #14202a, #0b0b0b); border-color: #1c2a35; color: var(--accent); }
+    button.ghost { color: var(--muted); }
+    button.danger { color: var(--danger); border-color: #3b1d1d; }
+    button.tiny { padding: 4px 8px; font-size: 11px; }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%; padding: 7px 9px; background: var(--surface-2); color: var(--text);
+      border: 1px solid var(--border); border-radius: 9px; outline: none; font-size: 12px;
     }
-    .toggle {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      font-size: 11px;
-      color: var(--muted);
+    input:focus, select:focus { border-color: var(--accent); }
+
+    .toggle { display: flex; gap: 7px; align-items: center; font-size: 12px; color: var(--muted); cursor: pointer; }
+    .toggle input { accent-color: var(--accent); }
+
+    .tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 10px; border: 1px solid var(--border); }
+    .tab { flex: 1; text-align: center; background: transparent; border: none; color: var(--muted); padding: 6px; border-radius: 8px; }
+    .tab.active { background: #16222c; color: var(--accent); }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip {
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--muted);
+      border-radius: 999px; padding: 3px 9px; font-size: 11px; cursor: pointer;
     }
-    .primary,
-    .secondary {
-      appearance: none;
-      border-radius: 10px;
-      padding: 8px 12px;
-      font-size: 12px;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      background: #0f0f0f;
-      color: var(--text);
-    }
-    .primary {
-      background: linear-gradient(180deg, #111111, #0b0b0b);
-    }
-    .secondary {
-      background: #0a0a0a;
-      color: var(--muted);
-    }
-    .status {
-      min-height: 14px;
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .entries {
-      display: grid;
-      gap: 10px;
-      max-height: 320px;
-      overflow-y: auto;
-      padding-right: 4px;
-    }
-    .entry {
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 8px;
-      display: grid;
-      gap: 6px;
-    }
-    .entry:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-    .entry-main {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .entry-url {
-      flex: 1;
-      min-width: 140px;
-      word-break: break-all;
-      font-size: 12px;
-      color: var(--text);
-      cursor: pointer;
-    }
-    .entry-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
-    }
-    .badge {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: #0f0f0f;
-      color: var(--muted);
-    }
-    .badge.method {
-      color: var(--accent);
-      border-color: #1c2a35;
-    }
-    .badge.status-2xx { color: #9ce3b4; border-color: #173526; }
-    .badge.status-3xx { color: #9ad7ff; border-color: #1d2e3b; }
-    .badge.status-4xx { color: #ffd480; border-color: #3b2d1d; }
-    .badge.status-5xx { color: #ff9a9a; border-color: #3b1d1d; }
-    .pill {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: #0f0f0f;
-      color: var(--muted);
-    }
-    .pill.score {
-      color: var(--accent-2);
-      border-color: #3b2d1d;
-    }
-    .hidden {
-      display: none;
-    }
-    details.graphql {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px;
-      background: var(--surface);
-    }
-    summary.graphql-summary {
-      cursor: pointer;
-      color: var(--muted);
-      font-size: 12px;
-      list-style: none;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    summary.graphql-summary::-webkit-details-marker {
-      display: none;
-    }
+    .chip.active { border-color: var(--accent); color: var(--accent); }
+
+    .list { display: grid; gap: 8px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
+    .entry { border-bottom: 1px solid var(--border); padding-bottom: 7px; display: grid; gap: 5px; }
+    .entry:last-child { border-bottom: none; padding-bottom: 0; }
+    .entry-main { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .entry-url { flex: 1; min-width: 150px; word-break: break-all; font-size: 12px; color: var(--text); cursor: pointer; }
+    .entry-url:hover { color: var(--accent); }
+    .entry-meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+
+    .badge { font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); }
+    .badge.method { color: var(--accent); border-color: #1c2a35; }
+    .badge.status-2xx { color: var(--good); border-color: #173526; }
+    .badge.status-3xx { color: var(--accent); border-color: #1d2e3b; }
+    .badge.status-4xx { color: var(--accent-2); border-color: #3b2d1d; }
+    .badge.status-5xx { color: var(--danger); border-color: #3b1d1d; }
+    .pill { font-size: 10px; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); }
+    .pill.score { color: var(--accent-2); border-color: #3b2d1d; font-weight: 600; }
+    .pill.sensitive { color: var(--danger); border-color: #3b1d1d; }
+    .pill.count { color: var(--accent); border-color: #1c2a35; }
+    .chip.mini { padding: 2px 7px; font-size: 10px; }
+
+    .example { font-size: 10px; color: var(--muted); word-break: break-all; padding-left: 4px; }
+
+    .hidden { display: none; }
+    details { border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; background: var(--surface); }
+    summary { cursor: pointer; color: var(--muted); font-size: 12px; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "▸"; color: var(--muted); font-size: 10px; }
+    details[open] summary::after { content: "▾"; }
+    .settings-grid { display: grid; gap: 8px; margin-top: 10px; }
+    .field { display: grid; gap: 4px; }
+    .field label { font-size: 11px; color: var(--muted); }
+    .field-row { display: flex; gap: 8px; }
+    .field-row .field { flex: 1; }
+    .status { min-height: 14px; font-size: 11px; color: var(--muted); }
+    .divider { height: 1px; background: var(--border); margin: 2px 0; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 8px; }
   </style>
 </head>
 <body>
@@ -197,34 +134,136 @@
     <header class="card">
       <div class="header-row">
         <h1>PathMiner</h1>
+        <span id="hostName" class="host">—</span>
       </div>
-      <p class="sub">Scan, capture, and explore endpoints.</p>
+      <div class="stats">
+        <div class="stat"><b id="statEndpoints">0</b><span>endpoints</span></div>
+        <div class="stat"><b id="statPatterns">0</b><span>patterns</span></div>
+        <div class="stat high"><b id="statHigh">0</b><span>high-value</span></div>
+        <div class="stat"><b id="statSensitive">0</b><span>sensitive</span></div>
+      </div>
     </header>
 
-    <section class="card compact">
-      <button id="runCode" class="primary" type="button">Run scan</button>
+    <section class="card">
+      <div class="row">
+        <button id="runCode" class="primary grow" type="button">Run scan</button>
+        <button id="refreshBtn" class="ghost" type="button" title="Refresh">↻</button>
+      </div>
+      <div class="row">
+        <input id="crawlSeed" type="text" class="grow" placeholder="Crawl seed URL (defaults to site root)" />
+      </div>
+      <div class="row">
+        <button id="crawlStart" class="grow" type="button">Start crawl</button>
+        <button id="crawlStop" class="grow" type="button" disabled>Stop</button>
+      </div>
+      <div id="crawlProgress" class="status"></div>
     </section>
 
-    <details id="graphqlTools" class="graphql">
-      <summary class="graphql-summary">GraphQL tools</summary>
-      <div class="row" style="margin-top:8px;">
-        <select id="graphqlTarget" class="select"></select>
+    <section class="card">
+      <div class="tabs">
+        <button id="viewEndpoints" class="tab active" type="button">Endpoints</button>
+        <button id="viewPatterns" class="tab" type="button">Patterns</button>
       </div>
-      <div class="row" style="margin-top:8px;">
-        <button id="graphqlGuess" class="secondary" type="button">Generate endpoints</button>
-        <button id="graphqlIntrospect" class="primary" type="button">Try introspection</button>
+      <input id="searchInput" type="text" placeholder="Filter by URL, tag, method..." />
+      <div class="row">
+        <select id="methodFilter" class="grow">
+          <option value="all">All methods</option>
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="PATCH">PATCH</option>
+          <option value="DELETE">DELETE</option>
+          <option value="OPTIONS">OPTIONS</option>
+          <option value="HEAD">HEAD</option>
+        </select>
+        <select id="statusFilter" class="grow">
+          <option value="all">Any status</option>
+          <option value="2xx">2xx</option>
+          <option value="3xx">3xx</option>
+          <option value="4xx">4xx</option>
+          <option value="5xx">5xx</option>
+          <option value="none">No status</option>
+        </select>
       </div>
-      <label class="toggle" style="margin-top:8px;">
-        <input type="checkbox" id="graphqlAllowToggle" />
-        Allow introspection
-      </label>
-      <div id="graphqlStatus" class="status"></div>
-    </details>
+      <label class="toggle"><input type="checkbox" id="highOnly" /> High-value only (score ≥ 40)</label>
+      <div id="tagChips" class="chips"></div>
+    </section>
 
     <section id="entriesSection" class="card hidden">
-      <div id="entries" class="entries"></div>
-      <button id="loadMore" class="secondary hidden" type="button">Load more</button>
+      <div id="entries" class="list"></div>
+      <button id="loadMore" class="ghost hidden" type="button">Load more</button>
     </section>
+
+    <section id="patternsSection" class="card hidden">
+      <div id="patterns" class="list"></div>
+    </section>
+
+    <section id="findingsSection" class="card hidden">
+      <div class="row between">
+        <span class="sub"><b id="findingsCount" style="color:var(--danger)">0</b> secrets &amp; findings</span>
+        <button id="findingsCopy" class="tiny" type="button">Copy</button>
+      </div>
+      <div id="findings" class="list"></div>
+    </section>
+
+    <details id="paramsPanel" class="hidden">
+      <summary><span>Discovered parameters (<span id="paramsCount">0</span>)</span></summary>
+      <div class="settings-grid">
+        <div id="paramsList" class="chips"></div>
+        <button id="paramsCopy" class="tiny" type="button">Copy all params</button>
+      </div>
+    </details>
+
+    <section class="card">
+      <span class="sub">Export current view</span>
+      <div class="row">
+        <button id="exportCopy" class="tiny grow" type="button">Copy</button>
+        <button id="exportTxt" class="tiny grow" type="button">TXT</button>
+        <button id="exportWords" class="tiny grow" type="button">Wordlist</button>
+      </div>
+      <div class="row">
+        <button id="exportJson" class="tiny grow" type="button">JSON</button>
+        <button id="exportCsv" class="tiny grow" type="button">CSV</button>
+        <button id="exportCurl" class="tiny grow" type="button">cURL</button>
+      </div>
+    </section>
+
+    <details id="graphqlTools">
+      <summary>GraphQL tools</summary>
+      <div class="settings-grid">
+        <select id="graphqlTarget"></select>
+        <div class="row">
+          <button id="graphqlGuess" class="grow" type="button">Generate endpoints</button>
+          <button id="graphqlIntrospect" class="primary grow" type="button">Try introspection</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="graphqlAllowToggle" /> Allow introspection</label>
+        <div id="graphqlStatus" class="status"></div>
+      </div>
+    </details>
+
+    <details id="settingsPanel">
+      <summary>Settings</summary>
+      <div class="settings-grid">
+        <label class="toggle"><input type="checkbox" id="setPassive" /> Passive network capture</label>
+        <label class="toggle"><input type="checkbox" id="setActive" /> Enable active crawler</label>
+        <label class="toggle"><input type="checkbox" id="setStoreRaw" /> Store raw URLs (skip redaction)</label>
+        <label class="toggle"><input type="checkbox" id="setAggressive" /> Aggressive pattern collapsing</label>
+        <label class="toggle"><input type="checkbox" id="setQueryKeys" /> Include query keys in patterns</label>
+        <div class="divider"></div>
+        <div class="field-row">
+          <div class="field">
+            <label for="setDepth">Crawl depth</label>
+            <input id="setDepth" type="number" min="0" max="6" />
+          </div>
+          <div class="field">
+            <label for="setMaxPages">Max pages</label>
+            <input id="setMaxPages" type="number" min="1" max="500" />
+          </div>
+        </div>
+        <div class="divider"></div>
+        <button id="clearData" class="danger" type="button">Clear this site's data</button>
+      </div>
+    </details>
 
     <div id="status" class="status">Ready.</div>
   </div>

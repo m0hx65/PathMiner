@@ -2,6 +2,8 @@ const SETTINGS_KEY = "pm_settings";
 const WORKSPACE_PREFIX = "pm_workspace_";
 const MAX_ENTRIES = 5000;
 const MAX_PATTERNS = 2000;
+const MAX_FINDINGS = 500;
+const HIGH_VALUE_SCORE = 40;
 const SAVE_DEBOUNCE_MS = 1000;
 
 const DEFAULT_SETTINGS = {
@@ -197,6 +199,42 @@ function scoreEndpoint(entry) {
   if (/(upload|import|export|download)/.test(lower)) {
     score += 15;
     tags.add("upload");
+  }
+
+  if (/(webhook|callback|notify|ipn)/.test(lower)) {
+    score += 10;
+    tags.add("webhook");
+  }
+
+  if (/(payment|billing|invoice|checkout|charge|refund|wallet|balance)/.test(lower)) {
+    score += 15;
+    tags.add("payment");
+  }
+
+  // High-signal sensitive files / leaked artifacts.
+  if (
+    /(\.env|\.git\/|\.svn\/|\.hg\/|\.bak|\.old|\.orig|\.swp|\.sql|\.sqlite|\.db|\.log|\.pem|\.key|\.p12|\.pfx|id_rsa|\.htpasswd|\.htaccess|wp-config|web\.config|\.ds_store|dump|backup|credentials|secret)/.test(
+      lower
+    )
+  ) {
+    score += 35;
+    tags.add("sensitive");
+  }
+
+  // Framework debug / management surfaces.
+  if (
+    /\/(actuator|jolokia|heapdump|threaddump|env|metrics|prometheus|phpinfo|server-status|_status|debug|__debug__)(\/|$|\?)/.test(
+      path
+    )
+  ) {
+    score += 20;
+    tags.add("actuator");
+  }
+
+  // Structured data responses worth inspecting.
+  if (/\.(json|xml|ya?ml|csv)(\?|$)/.test(lower)) {
+    score += 5;
+    tags.add("data");
   }
 
   if (hasQueryParams(entry.normalizedUrl)) {
@@ -543,11 +581,18 @@ async function loadWorkspace(workspaceKey) {
       patterns.set(pattern.id, pattern);
     }
   }
+  const findings = new Map();
+  if (stored && Array.isArray(stored.findings)) {
+    for (const finding of stored.findings) {
+      if (finding && finding.id) findings.set(finding.id, finding);
+    }
+  }
   const workspace = {
     entries,
     patterns,
     patternIndex: new Map(),
     patternsBuilt,
+    findings,
   };
   workspaceCache.set(workspaceKey, workspace);
   return workspace;
@@ -562,15 +607,37 @@ function scheduleSave(workspaceKey) {
   saveTimers.set(workspaceKey, timer);
 }
 
+const notifyTimers = new Map();
+
+function emitMessage(message) {
+  try {
+    chrome.runtime.sendMessage(message, () => {
+      // Popup may be closed; reading lastError prevents "Unchecked runtime.lastError" noise.
+      void chrome.runtime.lastError;
+    });
+  } catch (error) {
+    // Service worker context can be torn down mid-send; ignore.
+  }
+}
+
 function notifyWorkspace(workspaceKey) {
   const now = Date.now();
   const last = lastNotify.get(workspaceKey) || 0;
-  if (now - last < 500) return;
-  lastNotify.set(workspaceKey, now);
-  chrome.runtime.sendMessage({
-    type: "pm_workspace_updated",
-    workspaceKey,
-  });
+  if (now - last >= 500) {
+    lastNotify.set(workspaceKey, now);
+    emitMessage({ type: "pm_workspace_updated", workspaceKey });
+    return;
+  }
+  // Within the throttle window: guarantee a trailing notification so the popup
+  // never misses the final state of a burst of updates.
+  if (notifyTimers.has(workspaceKey)) return;
+  const wait = 500 - (now - last);
+  const timer = setTimeout(() => {
+    notifyTimers.delete(workspaceKey);
+    lastNotify.set(workspaceKey, Date.now());
+    emitMessage({ type: "pm_workspace_updated", workspaceKey });
+  }, wait);
+  notifyTimers.set(workspaceKey, timer);
 }
 
 async function saveWorkspace(workspaceKey) {
@@ -598,12 +665,22 @@ async function saveWorkspace(workspaceKey) {
       workspace.patterns.delete(patterns[i].id);
     }
   }
+  const findings = Array.from((workspace.findings || new Map()).values());
+  if (findings.length > MAX_FINDINGS) {
+    findings.sort((a, b) => (a.lastSeen || 0) - (b.lastSeen || 0));
+    const toRemove = findings.length - MAX_FINDINGS;
+    for (let i = 0; i < toRemove; i++) {
+      workspace.findings.delete(findings[i].id);
+    }
+  }
   await chrome.storage.local.set({
     [WORKSPACE_PREFIX + workspaceKey]: {
       entries: Array.from(workspace.entries.values()),
       patterns: Array.from((workspace.patterns || new Map()).values()),
+      findings: Array.from((workspace.findings || new Map()).values()),
     },
   });
+  refreshBadgeForWorkspace(workspaceKey);
 }
 
 async function upsertEntry(input, options = {}) {
@@ -717,11 +794,11 @@ function extractUrlsFromHtml(html, baseUrl) {
       pushResult(axiosMatch[2], axiosMatch[1].toUpperCase());
     }
 
-    const pathRegex = /["'`](\/[a-zA-Z0-9_?&=\/\\-#\\.]+)["'`]/g;
+    const pathRegex = /["'`](\/[a-zA-Z0-9_?&=/#.~%-]+)["'`]/g;
     let pathMatch;
-      while ((pathMatch = pathRegex.exec(scriptContent))) {
-        pushResult(pathMatch[1], "GET");
-      }
+    while ((pathMatch = pathRegex.exec(scriptContent))) {
+      pushResult(pathMatch[1], "GET");
+    }
   }
 
   return results
@@ -843,7 +920,7 @@ async function startCrawl(options) {
     runCrawlWorker(state);
   }
 
-  chrome.runtime.sendMessage({ type: "pm_crawl_update", workspaceKey });
+  emitMessage({ type: "pm_crawl_update", workspaceKey });
   return { ok: true };
 }
 
@@ -859,13 +936,13 @@ async function runCrawlWorker(state) {
     }
     if (state.pagesCrawled >= state.maxPages) break;
     await crawlPage(state, next.url, next.depth);
-    chrome.runtime.sendMessage({ type: "pm_crawl_update", workspaceKey: state.workspaceKey });
+    emitMessage({ type: "pm_crawl_update", workspaceKey: state.workspaceKey });
     await new Promise((resolve) => setTimeout(resolve, state.delayMs));
   }
   state.activeWorkers -= 1;
   if (state.activeWorkers <= 0) {
     state.running = false;
-    chrome.runtime.sendMessage({ type: "pm_crawl_update", workspaceKey: state.workspaceKey });
+    emitMessage({ type: "pm_crawl_update", workspaceKey: state.workspaceKey });
   }
 }
 
@@ -1030,6 +1107,157 @@ async function introspectGraphql(url, workspaceKey, origin) {
   }
 }
 
+async function ingestScanPaths(items, workspaceKey, origin) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return { ok: true, added: 0 };
+  }
+  const seen = new Set();
+  let added = 0;
+  let derivedKey = workspaceKey || null;
+  for (const item of items) {
+    const url = item && item.url;
+    if (!url || !/^https?:/i.test(url)) continue;
+    if (url.startsWith("chrome-extension://")) continue;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    if (!derivedKey) derivedKey = getWorkspaceKey(url);
+    await upsertEntry(
+      {
+        url,
+        method: item.method || "GET",
+        status: null,
+        contentType: null,
+        size: null,
+        durationMs: null,
+        source: item.source || "page_scan",
+        tags: Array.isArray(item.tags) ? item.tags : ["scan"],
+        workspaceKey,
+        origin,
+      },
+      { silent: true }
+    );
+    added += 1;
+  }
+  if (added && derivedKey) {
+    notifyWorkspace(derivedKey);
+  }
+  return { ok: true, added };
+}
+
+// Store only finding metadata (type, source, masked preview) — never the raw secret.
+async function ingestFindings(items, workspaceKey) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return { ok: true, added: 0 };
+  }
+  let derivedKey = workspaceKey || null;
+  if (!derivedKey && items[0] && items[0].source) {
+    derivedKey = getWorkspaceKey(items[0].source);
+  }
+  if (!derivedKey) return { ok: true, added: 0 };
+
+  const workspace = await loadWorkspace(derivedKey);
+  if (!workspace.findings) workspace.findings = new Map();
+  const now = Date.now();
+  let added = 0;
+  for (const item of items) {
+    if (!item || !item.type) continue;
+    const type = String(item.type).slice(0, 40);
+    const source = typeof item.source === "string" ? item.source.slice(0, 300) : "";
+    const preview = typeof item.preview === "string" ? item.preview.slice(0, 60) : "";
+    const id = hashString(`${type}|${source}|${preview}`);
+    const existing = workspace.findings.get(id);
+    if (existing) {
+      existing.count = (existing.count || 1) + 1;
+      existing.lastSeen = now;
+      continue;
+    }
+    workspace.findings.set(id, {
+      id,
+      type,
+      source,
+      preview,
+      severity: item.severity === "high" || item.severity === "low" ? item.severity : "medium",
+      count: 1,
+      firstSeen: now,
+      lastSeen: now,
+    });
+    added += 1;
+  }
+  if (added) {
+    scheduleSave(derivedKey);
+    notifyWorkspace(derivedKey);
+  }
+  return { ok: true, added };
+}
+
+async function clearWorkspace(workspaceKey) {
+  if (!workspaceKey) {
+    return { ok: false, error: "No workspace." };
+  }
+  if (saveTimers.has(workspaceKey)) {
+    clearTimeout(saveTimers.get(workspaceKey));
+    saveTimers.delete(workspaceKey);
+  }
+  const workspace = await loadWorkspace(workspaceKey);
+  workspace.entries = new Map();
+  workspace.patterns = new Map();
+  workspace.patternIndex = new Map();
+  workspace.findings = new Map();
+  workspace.patternsBuilt = true;
+  await chrome.storage.local.remove(WORKSPACE_PREFIX + workspaceKey);
+  notifyWorkspace(workspaceKey);
+  refreshBadgeForWorkspace(workspaceKey);
+  return { ok: true };
+}
+
+/* ---------- Toolbar badge (high-value count for the active tab's host) ---------- */
+
+function countHighValue(workspace) {
+  if (!workspace || !workspace.entries) return 0;
+  const seen = new Set();
+  let count = 0;
+  for (const entry of workspace.entries.values()) {
+    if ((entry.score || 0) < HIGH_VALUE_SCORE) continue;
+    const key = entry.normalizedUrl || entry.url;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    count += 1;
+  }
+  return count;
+}
+
+async function updateBadgeForTab(tabId, url) {
+  if (typeof tabId !== "number") return;
+  try {
+    if (!url || !/^https?:/i.test(url)) {
+      chrome.action.setBadgeText({ tabId, text: "" });
+      return;
+    }
+    const workspace = await loadWorkspace(getWorkspaceKey(url));
+    const high = countHighValue(workspace);
+    const text = high <= 0 ? "" : high > 99 ? "99+" : String(high);
+    chrome.action.setBadgeText({ tabId, text });
+  } catch (error) {
+    // Tab may be gone; ignore.
+  }
+}
+
+function refreshBadgeForWorkspace(workspaceKey) {
+  try {
+    chrome.tabs.query({}, (tabs) => {
+      void chrome.runtime.lastError;
+      if (!tabs) return;
+      for (const tab of tabs) {
+        if (getWorkspaceKey(tab.url || "") === workspaceKey) {
+          updateBadgeForTab(tab.id, tab.url);
+        }
+      }
+    });
+  } catch (error) {
+    // ignore
+  }
+}
+
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
     if (!settingsCache.passiveEnabled) return;
@@ -1134,8 +1362,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           ? {
               entries: Array.from(workspace.entries.values()),
               patterns: Array.from((workspace.patterns || new Map()).values()),
+              findings: Array.from((workspace.findings || new Map()).values()),
             }
-          : { entries: [], patterns: [] },
+          : { entries: [], patterns: [], findings: [] },
         crawl,
       });
     })();
@@ -1180,8 +1409,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "pm_scan_paths") {
+    ingestScanPaths(message.items, message.workspaceKey, message.origin).then(
+      (result) => sendResponse(result)
+    );
+    return true;
+  }
+
+  if (message.type === "pm_scan_findings") {
+    ingestFindings(message.items, message.workspaceKey).then((result) =>
+      sendResponse(result)
+    );
+    return true;
+  }
+
+  if (message.type === "pm_clear_workspace") {
+    clearWorkspace(message.workspaceKey).then((result) => sendResponse(result));
+    return true;
+  }
+
   if (message.type === "pm_hook_event") {
     (async () => {
+      // Only accept hook events relayed by our own content-script bridge in a tab.
+      if (!sender || sender.id !== chrome.runtime.id || !sender.tab) {
+        sendResponse({ ok: false, error: "Untrusted sender." });
+        return;
+      }
       const payload = message.payload || {};
       const url = payload.url || "";
       if (!/^https?:/i.test(url)) {
@@ -1229,4 +1482,33 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  chrome.tabs.get(tabId, (tab) => {
+    void chrome.runtime.lastError;
+    if (tab) updateBadgeForTab(tabId, tab.url);
+  });
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete" || changeInfo.url) {
+    updateBadgeForTab(tabId, tab && tab.url);
+  }
+});
+
+function initBadge() {
+  try {
+    chrome.action.setBadgeBackgroundColor({ color: "#1f6feb" });
+    if (chrome.action.setBadgeTextColor) {
+      chrome.action.setBadgeTextColor({ color: "#ffffff" });
+    }
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      void chrome.runtime.lastError;
+      if (tabs && tabs[0]) updateBadgeForTab(tabs[0].id, tabs[0].url);
+    });
+  } catch (error) {
+    // ignore
+  }
+}
+
 ensureSettings();
+initBadge();
