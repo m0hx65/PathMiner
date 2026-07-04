@@ -483,10 +483,8 @@ function createEntryRow(entry) {
   const url = document.createElement("span");
   url.className = "entry-url";
   url.textContent = entry.url || "";
-  url.title = "Click to open · " + (entry.url || "");
-  url.addEventListener("click", () => {
-    if (entry.url && entry.url.startsWith("http")) chrome.tabs.create({ url: entry.url });
-  });
+  url.title = "Click to open in a new background tab · " + (entry.url || "");
+  url.addEventListener("click", () => openEntryUrl(entry.url));
 
   main.appendChild(method);
   main.appendChild(status);
@@ -652,9 +650,7 @@ function createPatternRow(pattern) {
     const ex = document.createElement("div");
     ex.className = "example";
     ex.textContent = example;
-    ex.addEventListener("click", () => {
-      if (example.startsWith("http")) chrome.tabs.create({ url: example });
-    });
+    ex.addEventListener("click", () => openEntryUrl(example));
     row.appendChild(ex);
   }
   return row;
@@ -713,9 +709,7 @@ function createFindingRow(finding) {
     src.className = "example";
     src.textContent = finding.source;
     src.title = "Open source: " + finding.source;
-    src.addEventListener("click", () => {
-      if (finding.source.startsWith("http")) chrome.tabs.create({ url: finding.source });
-    });
+    src.addEventListener("click", () => openEntryUrl(finding.source));
     row.appendChild(main);
     row.appendChild(meta);
     row.appendChild(src);
@@ -1115,6 +1109,24 @@ function copyText(text) {
   } finally {
     document.body.removeChild(textarea);
   }
+}
+
+function openEntryUrl(targetUrl) {
+  if (!targetUrl || !/^https?:/i.test(targetUrl)) return;
+  // Open in a background tab positioned right after the current tab, and keep
+  // it inactive so focus stays put and the popup does not close.
+  const options = { url: targetUrl, active: false };
+  if (state.activeTab) {
+    if (typeof state.activeTab.index === "number") {
+      options.index = state.activeTab.index + 1;
+    }
+    if (typeof state.activeTab.id === "number") {
+      options.openerTabId = state.activeTab.id;
+    }
+  }
+  chrome.tabs.create(options, () => {
+    void chrome.runtime.lastError;
+  });
 }
 
 function getStatusClass(status) {

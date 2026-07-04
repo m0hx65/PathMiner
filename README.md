@@ -4,6 +4,14 @@ A fast, local‑first Chrome (MV3) extension for **endpoint discovery, scoring, 
 
 > **v2.0** — major release. See the [Changelog](#changelog).
 
+## Screenshots
+
+| Endpoints & findings | Pattern grouping | Settings & tools |
+| --- | --- | --- |
+| ![PathMiner endpoints view](docs/pathminer-endpoints.png) | ![PathMiner patterns view](docs/pathminer-patterns.png) | ![PathMiner settings](docs/pathminer-settings.png) |
+
+<sub>Data shown is synthetic (`app.example.com`) for illustration.</sub>
+
 ## Features
 
 **Discovery**
